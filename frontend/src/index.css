@@ -125,12 +125,14 @@ h3 {
 h1 {
   font-size: 3rem;
   background: linear-gradient(to right, #fff, #a3b3b0);
+  background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
 .text-gradient {
   background: linear-gradient(to right, var(--primary), var(--secondary));
+  background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
