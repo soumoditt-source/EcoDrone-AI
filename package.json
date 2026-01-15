@@ -1,0 +1,8 @@
+{
+    "name": "ecodrone-ai-root",
+    "private": true,
+    "scripts": {
+        "build": "npm install --prefix frontend && npm run build --prefix frontend",
+        "install": "npm install --prefix frontend"
+    }
+}
