@@ -7,11 +7,12 @@
         },
         {
             "source": "/(.*)",
-            "destination": "/frontend/dist/$1""functions": {
-                "api/*.py": {
-                    "excludeFiles": "frontend/**"
-                }
-            }
+            "destination": "/frontend/dist/$1"
         }
-    ]
+    ],
+    "functions": {
+        "api/index.py": {
+            "excludeFiles": "{frontend/**,node_modules/**,backend/tests/**}"
+        }
+    }
 }
