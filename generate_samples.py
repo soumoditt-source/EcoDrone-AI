@@ -1,71 +1,50 @@
-import cv2
-import numpy as np
-import os
+from PIL import Image, ImageDraw
 import random
+import os
 
-def create_sample_images():
-    # 1. Setup Canvas (1000x1000 represents a small patch)
-    height, width = 1000, 1000
+def create_sample_images_pil():
+    width, height = 1000, 1000
     
-    # --- OP1: Soil with Pits (Brownish) ---
-    op1_img = np.zeros((height, width, 3), dtype=np.uint8)
-    op1_img[:] = (60, 90, 120)  # BGR: Brownish soil color
+    # OP1: Brown-ish
+    op1 = Image.new('RGB', (width, height), color=(120, 90, 60))
+    d1 = ImageDraw.Draw(op1)
     
-    # Add Texture (Noise)
-    noise = np.random.randint(0, 30, (height, width, 3), dtype=np.uint8)
-    op1_img = cv2.add(op1_img, noise)
-
-    # Define Pit Locations (Grid)
+    # Draw Pits
     pits = []
     rows, cols = 5, 5
-    spacing_x = width // (cols + 1)
-    spacing_y = height // (rows + 1)
+    sp_x = width // (cols + 1)
+    sp_y = height // (rows + 1)
     
     for i in range(rows):
         for j in range(cols):
-            x = (j + 1) * spacing_x + random.randint(-10, 10) # Slight random jitter
-            y = (i + 1) * spacing_y + random.randint(-10, 10)
+            x = (j + 1) * sp_x
+            y = (i + 1) * sp_y
+            r = 20
+            # Draw pit (dark circle)
+            d1.ellipse([x-r, y-r, x+r, y+r], fill=(80, 50, 30), outline=(60, 40, 20))
             pits.append((x, y))
-            
-            # Draw Pit (Darker circle)
-            cv2.circle(op1_img, (x, y), 20, (30, 50, 80), -1) # 20px radius ~ 45cm
-            # Add "shadow" or edge to pit
-            cv2.circle(op1_img, (x, y), 20, (20, 40, 60), 2)
 
-    # Save OP1
-    cv2.imwrite("sample_op1.png", op1_img)
-    print("Created sample_op1.png")
+    op1.save("sample_op1.png")
+    print("Created sample_op1.png (using PIL)")
 
-    # --- OP3: Soil + Saplings (Green) ---
-    op3_img = op1_img.copy()
+    # OP3: Same base + Plants
+    op3 = op1.copy()
+    d3 = ImageDraw.Draw(op3)
     
-    # Simulate slightly different lighting/shift (Registration challenge)
-    M = np.float32([[1, 0, 5], [0, 1, 5]]) # 5px shift
-    op3_img = cv2.warpAffine(op3_img, M, (width, height))
-    
-    # Planting: 80% Survival
-    for idx, (px, py) in enumerate(pits):
-        # Shift pit coords slightly for drawing because we shifted the image
-        px += 5
-        py += 5
-        
-        if random.random() > 0.2: # 80% chance alive
-            # Draw Plant (Green varietes)
-            color = (50, random.randint(180, 255), 50) # Bright Green
-            radius = random.randint(15, 25)
-            cv2.circle(op3_img, (px, py), radius, color, -1)
-            # Add some "leaves" texture
-            cv2.circle(op3_img, (px+5, py+5), 10, (40, 200, 40), -1)
-            cv2.circle(op3_img, (px-5, py-5), 8, (60, 220, 60), -1)
+    for (x, y) in pits:
+        # 80% survival
+        if random.random() < 0.8:
+            # Green plant
+            r = random.randint(15, 25)
+            d3.ellipse([x-r, y-r, x+r, y+r], fill=(50, 200, 50))
+            d3.ellipse([x-10, y-10, x+10, y+10], fill=(100, 255, 100))
         else:
-            # Dead/Empty (Maybe just weeds or nothing)
-            # Draw small weeds (yellowish/dull green)
+            # Dead (Empty or brown spot)
             if random.random() > 0.5:
-                 cv2.circle(op3_img, (px, py), 10, (50, 100, 100), -1) # Dry grass
+                 d3.ellipse([x-5, y-5, x+5, y+5], fill=(100, 100, 50))
 
-    # Save OP3
-    cv2.imwrite("sample_op3.png", op3_img)
-    print("Created sample_op3.png")
+    op3.save("sample_op3.png")
+    print("Created sample_op3.png (using PIL)")
 
 if __name__ == "__main__":
-    create_sample_images()
+    create_sample_images_pil()
