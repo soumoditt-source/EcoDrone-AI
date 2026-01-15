@@ -99,33 +99,23 @@ const MapVisualizer = ({ op1Image, op3Image, analysisData }) => {
 
                     {/* Sapling Markers */}
                     {/* Only show markers if slider is towards OP3 side (> 50%) or always? Always is better for stats. */}
-                    {analysisData.details.map((pit, idx) => {
-                        // Transform coords
-                        const mapY = imageHeight - pit.y;
-                        const mapX = pit.x;
-                        const isAlive = pit.status === 'alive';
-
-                        return (
-                            <CircleMarker
-                                key={idx}
-                                center={[mapY, mapX]}
-                                radius={isAlive ? 4 : 8} // Make dead ones slightly bigger
-                                pathOptions={{
-                                    color: isAlive ? '#00ff94' : '#ff4d4d',
-                                    fillColor: isAlive ? '#00ff94' : '#ff4d4d',
-                                    fillOpacity: 0.6
-                                }}
-                            >
-                                <Popup>
-                                    <div style={{ color: '#000' }}>
-                                        <strong>Status: {pit.status.toUpperCase()}</strong><br />
-                                        Confidence: {(pit.confidence * 100).toFixed(1)}%<br />
-                                        Pos: {pit.x}, {pit.y}
-                                    </div>
-                                </Popup>
-                            </CircleMarker>
-                        )
-                    })}
+                    {analysisData.raw_details.map((pit, idx) => (
+                        <CircleMarker
+                            key={idx}
+                            center={[pit.y, pit.x]}
+                            radius={6}
+                            pathOptions={{
+                                color: pit.status === 'alive' ? 'var(--primary)' : 'var(--alert)',
+                                fillOpacity: 0.6
+                            }}
+                        >
+                            <Popup>
+                                <strong>Pit #{idx}</strong><br />
+                                Status: {pit.status.toUpperCase()}<br />
+                                Confidence: {(pit.confidence * 100).toFixed(1)}%
+                            </Popup>
+                        </CircleMarker>
+                    ))}
                 </MapContainer>
             </div>
         </div>

@@ -124,19 +124,39 @@ const Dashboard = () => {
                     <div className="stats-grid">
                         <div className="glass-panel stat-card">
                             <Activity color="var(--primary)" size={32} />
-                            <h3>{result.survival_rate.toFixed(1)}%</h3>
+                            <h3>{result.metrics.survival_rate.toFixed(1)}%</h3>
                             <p className="text-muted">Survival Rate</p>
                         </div>
                         <div className="glass-panel stat-card">
                             <Cpu color="var(--secondary)" size={32} />
-                            <h3>{result.total_pits}</h3>
-                            <p className="text-muted">Total Pits Detected</p>
+                            <h3>{result.metrics.processing_time_sec}s</h3>
+                            <p className="text-muted">Processing Time</p>
                         </div>
                         <div className="glass-panel stat-card">
                             <AlertTriangle color="var(--alert)" size={32} />
-                            <h3>{result.dead_count}</h3>
-                            <p className="text-muted">Casualties</p>
+                            <h3>{result.metrics.dead_count}</h3>
+                            <p className="text-muted">Detected Dead Spots</p>
                         </div>
+                    </div>
+
+                    <div style={{ textAlign: 'center', marginBottom: '30px' }}>
+                        <button
+                            className="btn-secondary"
+                            onClick={() => {
+                                const headers = "ID,X_Coordinate,Y_Coordinate,Confidence\n";
+                                const csvContent = "data:text/csv;charset=utf-8,"
+                                    + headers
+                                    + result.casualties.map(c => `${c.id},${c.x},${c.y},${c.conf}`).join("\n");
+                                const encodedUri = encodeURI(csvContent);
+                                const link = document.createElement("a");
+                                link.setAttribute("href", encodedUri);
+                                link.setAttribute("download", `ecodrone_casualties_${Date.now()}.csv`);
+                                document.body.appendChild(link);
+                                link.click();
+                            }}
+                        >
+                            Download Casualty CSV
+                        </button>
                     </div>
 
                     <div className="glass-panel" style={{ padding: '20px' }}>

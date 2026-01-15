@@ -40,67 +40,52 @@ async def analyze_patch(
     op1_image: UploadFile = File(...),
     op3_image: UploadFile = File(...)
 ):
-    """
-    Core Analysis Pipeline:
-    1. READ: Ingest heavy drone orthomosaics.
-    2. DETECT: Find pit locations in Year 1 data (OP1).
-    3. REGISTER: Align Year X data (OP3) to match Year 1 geometry.
-    4. CLASSIFY: Check each pit location for sapling survival (ExG Index).
-    """
+    import time
+    start_time = time.time()
+    
     try:
-        # --- I/O OPTIMIZATION NOTE ---
-        # For huge files (>100MB), reading into memory (await .read()) is a bottleneck.
-        # In a real production scale (Azure/AWS), we would stream these to a temp file 
-        # or process them in chunks. For Hackathon scale (<50MB), RAM is faster.
-        
-        print(f"[-] Receiving files: {op1_image.filename} & {op3_image.filename}")
+        print(f"[-] Processing Request: {op1_image.filename}")
         
         op1_bytes = await op1_image.read()
         op3_bytes = await op3_image.read()
         
         # 1. Detect Pits (OP1)
-        # Using Hough Circle Transform tailored for 45cm pits @ 2.5cm/px
         pits = detect_pits(op1_bytes)
         
         if not pits:
-            # Fallback/Corner Case: No pits found?
-            # Maybe the image is too dark or empty. Return graceful error.
             return {
                 "status": "partial_error", 
-                "message": "No pits detected in OP1. Check image alignment or contrast."
+                "message": "No pits detected in OP1. High probability of bad image contrast."
             }
 
-        print(f"[+] Detected {len(pits)} pits in base layer.")
-
-        # 2. Register Images (Align OP3 to OP1)
-        # Critical Step: Drones have GPS drift (~1m). SIFT fixes this.
+        # 2. Register Images
+        # Multi-pass registration strategy for competition accuracy
         registered_op3 = register_images(op1_bytes, op3_bytes)
         
-        # Decision Block: Did registration work?
-        if registered_op3 is not None:
-            image_to_analyze = registered_op3
-            registration_status = "success"
-            print("[+] Image Registration Successful (SIFT).")
-        else:
-            # Fallback: If not enough features (e.g., bare soil), use raw OP3.
-            # We assume the drone GPS was 'good enough' for a rough estimate.
-            image_to_analyze = op3_bytes 
-            registration_status = "failed_fallback_to_raw"
-            print("[!] Registration failed (low texture?). Using raw OP3.")
+        registration_status = "success" if registered_op3 is not None else "gps_fallback"
+        image_to_analyze = registered_op3 if registered_op3 is not None else op3_bytes 
 
-        # 3. Analyze Survival (OP3)
-        # Check bio-indicators at every pit location.
+        # 3. Analyze Survival
         survival_stats = analyze_survival_at_pits(image_to_analyze, pits)
         
-        print(f"[+] Analysis Complete. Survival Rate: {survival_stats.get('rate'):.1f}%")
+        exec_time = round(time.time() - start_time, 2)
+        print(f"[+] Total Processing Time: {exec_time}s")
 
         return {
             "status": "success",
-            "registration": registration_status,
-            "total_pits": len(pits),
-            "survival_rate": survival_stats.get("rate", 0),
-            "dead_count": survival_stats.get("dead", 0),
-            "details": survival_stats.get("details", [])
+            "metrics": {
+                "processing_time_sec": exec_time,
+                "registration": registration_status,
+                "total_pits": len(pits),
+                "survival_rate": round(survival_stats.get('rate', 0), 2),
+                "dead_count": survival_stats.get('dead', 0)
+            },
+            "casualties": [
+                {"id": i, "x": p['x'], "y": p['y'], "conf": p['confidence']} 
+                for i, p in enumerate(survival_stats.get('details', [])) 
+                if p['status'] == 'dead'
+            ],
+            "raw_details": survival_stats.get("details", [])
         }
         
     except Exception as e:
