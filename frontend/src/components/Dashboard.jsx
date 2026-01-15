@@ -1,3 +1,11 @@
+// ==========================================
+// Dashboard Component
+// ==========================================
+// Manages the user flow: 
+// 1. Upload OP1/OP3 images
+// 2. Send to Backend API
+// 3. Display Survival Stats & Map
+
 import { useState } from 'react';
 import axios from 'axios';
 import { motion } from 'framer-motion';

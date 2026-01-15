@@ -1,3 +1,10 @@
+// ==========================================
+// EcoDrone AI Frontend
+// Built by Soumoditya Das for Kshitij 2026
+// ==========================================
+// This component handles the main layout, navigation, 
+// and the "Deep Research" modal integration.
+
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Leaf, Drone, Activity, Layers } from 'lucide-react';
