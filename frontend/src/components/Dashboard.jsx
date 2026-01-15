@@ -5,6 +5,8 @@
 // 1. Upload OP1/OP3 images
 // 2. Send to Backend API
 // 3. Display Survival Stats & Map
+//
+// Built for Kshitij 2026
 
 import { useState } from 'react';
 import axios from 'axios';
