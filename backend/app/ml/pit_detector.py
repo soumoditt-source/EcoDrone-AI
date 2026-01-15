@@ -32,10 +32,16 @@ def detect_pits(image_bytes: bytes, gsd_cm_px: float = 2.5):
     max_radius = int(target_radius * 1.2)
 
     # 4. Hough Circle Transform
-    # param1: Canny edge threshold (high)
-    # param2: Accumulator threshold (lower = more circles)
-    # minDist: Minimum distance between centers (pits are 2.5m apart = 250cm = 100 pixels)
-    min_dist = int(250 / gsd_cm_px * 0.5) # Use half-spacing (50px) to be safe
+    # -----------------------------------------------------------------
+    # This is the "Magic" step. We look for circular gradients.
+    # dp=1.2:  Inverse ratio of accumulator resolution. 1.2 is slightly coarser than full res,
+    #          which helps ignore tiny noise/pebbles.
+    # minDist: Crucial! Pits are 2.5m apart. We force the algorithm to NOT find circles
+    #          closer than ~1.25m (half spacing) to avoid double-counting the same pit.
+    # param1:  Canny High Threshold. Higher = fewer edges. 50 is conservative.
+    # param2:  Accumulator Threshold. Lower = more circles. 30 is balanced.
+    # -----------------------------------------------------------------
+    min_dist = int(250 / gsd_cm_px * 0.5) 
     
     circles = cv2.HoughCircles(
         gray_blurred, 
