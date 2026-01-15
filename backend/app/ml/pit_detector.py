@@ -31,25 +31,20 @@ def detect_pits(image_bytes: bytes, gsd_cm_px: float = 2.5):
     min_radius = int(target_radius * 0.8)  # Allow 20% variance
     max_radius = int(target_radius * 1.2)
 
-    # 4. Hough Circle Transform
+    # 4. Hough Circle Transform (Field-Tuned for Real Noise)
     # -----------------------------------------------------------------
-    # This is the "Magic" step. We look for circular gradients.
-    # dp=1.2:  Inverse ratio of accumulator resolution. 1.2 is slightly coarser than full res,
-    #          which helps ignore tiny noise/pebbles.
-    # minDist: Crucial! Pits are 2.5m apart. We force the algorithm to NOT find circles
-    #          closer than ~1.25m (half spacing) to avoid double-counting the same pit.
-    # param1:  Canny High Threshold. Higher = fewer edges. 50 is conservative.
-    # param2:  Accumulator Threshold. Lower = more circles. 30 is balanced.
-    # -----------------------------------------------------------------
-    min_dist = int(250 / gsd_cm_px * 0.5) 
+    # Param1 (Edge sensitivity) lowered to 40 for broader feature detection.
+    # Param2 (Center accuracy) set to 35 to reject false positives from soil clumps.
+    # minDist increased to 0.7x spacing to force separation of adjacent pits.
+    min_dist = int(250 / gsd_cm_px * 0.7) 
     
     circles = cv2.HoughCircles(
         gray_blurred, 
         cv2.HOUGH_GRADIENT, 
         dp=1.2, 
         minDist=min_dist,
-        param1=50, 
-        param2=30, 
+        param1=40, 
+        param2=35, 
         minRadius=min_radius, 
         maxRadius=max_radius
     )
