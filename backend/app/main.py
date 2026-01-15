@@ -15,7 +15,8 @@ import io
 app = FastAPI(
     title="EcoDrone AI API", 
     description="High-Performance Afforestation Monitoring System", 
-    version="1.0.0"
+    version="1.0.0",
+    root_path="/api" # CRITICAL: Forces FastAPI to ignore the /api prefix in Vercel routes
 )
 
 # Enable CORS (Cross-Origin Resource Sharing)
