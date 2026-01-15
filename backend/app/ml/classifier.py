@@ -1,7 +1,7 @@
 import random
 from PIL import Image
-import torch
-# from ultralytics import YOLO  # Uncomment for real YOLOv8
+# import torch  # Disabling for Vercel/Serverless size limits
+# from ultralytics import YOLO  # Uncomment for real YOLOv8 (Local/GPU only)
 
 class SurvivalClassifier:
     def __init__(self, model_path=None):
