@@ -1,4 +1,6 @@
 import random
+import numpy as np
+import cv2
 from PIL import Image
 # import torch  # Disabling for Vercel/Serverless size limits
 # from ultralytics import YOLO  # Uncomment for real YOLOv8 (Local/GPU only)
@@ -66,18 +68,23 @@ def analyze_survival_at_pits(op3_image_input, pit_locations, gsd_cm_px=2.5):
     Args:
         op3_image_input: bytes OR numpy array (BGR).
     """
-    import numpy as np
-    import cv2
-    
-    # Decode if bytes
+    # Decode if bytes, otherwise use the numpy array directly
     if isinstance(op3_image_input, bytes):
         nparr = np.frombuffer(op3_image_input, np.uint8)
         image_op3 = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        print(f"[INFO] Decoded image from bytes. Shape: {image_op3.shape if image_op3 is not None else 'None'}")
     else:
         image_op3 = op3_image_input
+        print(f"[INFO] Using numpy array directly. Shape: {image_op3.shape if image_op3 is not None else 'None'}")
     
     if image_op3 is None:
-        return {"error": "Could not decode OP3 image"}
+        print("[ERROR] Could not decode OP3 image")
+        return {"error": "Could not decode OP3 image", "rate": 0, "total": 0, "dead": 0, "details": []}
+    
+    # Validate color channels
+    if len(image_op3.shape) != 3 or image_op3.shape[2] != 3:
+        print(f"[ERROR] Invalid image format. Expected 3 channels, got shape: {image_op3.shape}")
+        return {"error": "Invalid image format - expected color image", "rate": 0, "total": 0, "dead": 0, "details": []}
 
     classifier = SurvivalClassifier()
     results = []
@@ -113,6 +120,8 @@ def analyze_survival_at_pits(op3_image_input, pit_locations, gsd_cm_px=2.5):
     # -----------------------------------------------------------------
     min_dist = int(250 / gsd_cm_px * 0.7) # Slightly stricter spacing
     
+    print(f"[INFO] Detecting circles with radius range: {min_radius}-{max_radius}px, minDist: {min_dist}px")
+    
     circles = cv2.HoughCircles(
         gray_blurred, 
         cv2.HOUGH_GRADIENT, 
@@ -124,8 +133,9 @@ def analyze_survival_at_pits(op3_image_input, pit_locations, gsd_cm_px=2.5):
         maxRadius=max_radius
     )
 
-    # Fallback: if no circles are found, try with a lower threshold
+    # Fallback: if no circles are found, try with more relaxed parameters
     if circles is None:
+        print("[INFO] No circles found with strict parameters, trying relaxed detection...")
         circles = cv2.HoughCircles(
             gray_blurred, 
             cv2.HOUGH_GRADIENT, 
@@ -136,6 +146,9 @@ def analyze_survival_at_pits(op3_image_input, pit_locations, gsd_cm_px=2.5):
             minRadius=min_radius, 
             maxRadius=max_radius
         )
+    
+    if circles is None:
+        print("[WARNING] No circles detected even with relaxed parameters")
 
     detected_pits = []
     if circles is not None:
@@ -145,9 +158,16 @@ def analyze_survival_at_pits(op3_image_input, pit_locations, gsd_cm_px=2.5):
         # For a single image patch, we cap at a reasonable number.
         for (x, y, r) in circles[:2000]: 
             detected_pits.append({"x": int(x), "y": int(y), "r": int(r)})
+        print(f"[SUCCESS] Detected {len(detected_pits)} potential sapling locations")
+    else:
+        print("[INFO] No circles detected, will use provided pit locations")
             
-    # Use detected_pits for classification
+    # Use detected_pits for classification, fallback to provided pit_locations
     pit_locations_to_process = detected_pits if detected_pits else pit_locations
+    
+    if not pit_locations_to_process:
+        print("[WARNING] No pit locations available for analysis")
+        return {"rate": 0, "total": 0, "dead": 0, "details": []}
     
     dead_count = 0
     

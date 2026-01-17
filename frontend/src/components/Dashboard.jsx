@@ -27,6 +27,18 @@ const Dashboard = () => {
     const handleFileChange = (e, type) => {
         const file = e.target.files[0];
         if (file) {
+            // Validate file type
+            if (!file.type.startsWith('image/')) {
+                alert('Please upload a valid image file (PNG, JPG, etc.)');
+                return;
+            }
+
+            // Validate file size (max 10MB)
+            if (file.size > 10 * 1024 * 1024) {
+                alert('File size too large. Please upload images smaller than 10MB.');
+                return;
+            }
+
             if (type === 'op1') {
                 setOp1File(file);
                 setOp1Preview(URL.createObjectURL(file));
@@ -44,6 +56,7 @@ const Dashboard = () => {
         }
 
         setLoading(true);
+        setResult(null); // Clear previous results
         const formData = new FormData();
         formData.append('op1_image', op1File);
         formData.append('op3_image', op3File);
@@ -51,12 +64,31 @@ const Dashboard = () => {
         try {
             // Production-Ready: Using relative path for Vercel/Cloud deployment
             const response = await axios.post('/api/analyze', formData, {
-                headers: { 'Content-Type': 'multipart/form-data' }
+                headers: { 'Content-Type': 'multipart/form-data' },
+                timeout: 60000 // 60 second timeout
             });
+
+            if (response.data.status === 'partial_error') {
+                alert(`Warning: ${response.data.message}`);
+            }
+
             setResult(response.data);
         } catch (error) {
             console.error("Analysis failed", error);
-            alert("Analysis failed! Check backend connection.");
+
+            let errorMessage = "Analysis failed! ";
+            if (error.response) {
+                // Server responded with error
+                errorMessage += error.response.data.detail || error.response.statusText;
+            } else if (error.request) {
+                // Request made but no response
+                errorMessage += "No response from server. Check your connection.";
+            } else {
+                // Something else happened
+                errorMessage += error.message;
+            }
+
+            alert(errorMessage);
         } finally {
             setLoading(false);
         }
@@ -115,7 +147,7 @@ const Dashboard = () => {
             )}
 
             {/* Results Section */}
-            {result && (
+            {result && result.raw_details && result.raw_details.length > 0 && (
                 <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}

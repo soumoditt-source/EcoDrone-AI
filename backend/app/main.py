@@ -33,7 +33,19 @@ app.add_middleware(
 async def read_root():
     return {
         "message": "EcoDrone AI Systems Online. Ready for Analysis.",
-        "author": "Soumoditya Das"
+        "author": "Soumoditya Das",
+        "version": "1.0.0",
+        "status": "operational"
+    }
+
+@app.get("/health")
+async def health_check():
+    """Health check endpoint for Vercel and monitoring"""
+    import cv2
+    return {
+        "status": "healthy",
+        "opencv_version": cv2.__version__,
+        "api_version": "1.0.0"
     }
 
 @app.post("/analyze")
@@ -45,34 +57,62 @@ async def analyze_patch(
     start_time = time.time()
     
     try:
-        print(f"[-] Processing Request: {op1_image.filename}")
+        print(f"\n{'='*60}")
+        print(f"[REQUEST] Processing: {op1_image.filename} + {op3_image.filename}")
+        print(f"{'='*60}")
         
         op1_bytes = await op1_image.read()
         op3_bytes = await op3_image.read()
         
+        print(f"[INFO] OP1 size: {len(op1_bytes)} bytes")
+        print(f"[INFO] OP3 size: {len(op3_bytes)} bytes")
+        
         # 1. Detect Pits (OP1)
+        print("\n[STEP 1] Detecting pits in OP1...")
         pits = detect_pits(op1_bytes)
         
         if not pits:
+            print("[WARNING] No pits detected in OP1")
             return {
                 "status": "partial_error", 
-                "message": "No pits detected in OP1. High probability of bad image contrast."
+                "message": "No pits detected in OP1. Please ensure the image shows clear planting pits with good contrast.",
+                "metrics": {
+                    "processing_time_sec": round(time.time() - start_time, 2),
+                    "total_pits": 0,
+                    "survival_rate": 0,
+                    "dead_count": 0
+                },
+                "casualties": [],
+                "raw_details": []
             }
 
+        print(f"[SUCCESS] Detected {len(pits)} pits")
+
         # 2. Register Images
-        # Multi-pass registration strategy for competition accuracy
+        print("\n[STEP 2] Registering OP3 to OP1...")
         registered_op3 = register_images(op1_bytes, op3_bytes)
         
         registration_status = "success" if registered_op3 is not None else "gps_fallback"
-        image_to_analyze = registered_op3 if registered_op3 is not None else op3_bytes 
+        image_to_analyze = registered_op3 if registered_op3 is not None else op3_bytes
+        
+        if registration_status == "success":
+            print("[SUCCESS] Images aligned successfully")
+        else:
+            print("[WARNING] Registration failed, using raw OP3 image")
 
         # 3. Analyze Survival
+        print("\n[STEP 3] Analyzing survival at pit locations...")
         survival_stats = analyze_survival_at_pits(image_to_analyze, pits)
         
+        if "error" in survival_stats:
+            raise HTTPException(status_code=500, detail=survival_stats["error"])
+        
         exec_time = round(time.time() - start_time, 2)
-        print(f"[+] Total Processing Time: {exec_time}s")
+        print(f"\n[COMPLETE] Total Processing Time: {exec_time}s")
+        print(f"[RESULTS] Survival Rate: {survival_stats.get('rate', 0):.1f}%")
+        print(f"{'='*60}\n")
 
-        return {
+        response = {
             "status": "success",
             "metrics": {
                 "processing_time_sec": exec_time,
@@ -89,8 +129,19 @@ async def analyze_patch(
             "raw_details": survival_stats.get("details", [])
         }
         
+        # Validate response
+        if not response["raw_details"]:
+            print("[WARNING] No analysis details in response")
+        
+        return response
+        
     except Exception as e:
         # Catch-all for robust error handling
         import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Internal Processing Error: {str(e)}")
+        error_trace = traceback.format_exc()
+        print(f"\n[ERROR] Processing failed:")
+        print(error_trace)
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Internal Processing Error: {str(e)}. Check server logs for details."
+        )
